@@ -1,0 +1,11 @@
+Copyright (c) 2026 ACHRAF BELKHIRIA
+
+This copyright applies to the original contributions made to `blake2b-192`.
+The implementation was written from RFC 7693 and the BLAKE2 specification
+using RustCrypto's `blake2` crate (0.11.0-rc.6) as its review reference;
+anything derived from RustCrypto `blake2`, or from its ancestor `blake2-rfc`,
+remains copyright of The RustCrypto Project Developers, Artyom Pavlov, and
+The blake2-rfc Developers, Cesar Barros, as recorded in LICENSE-MIT.
+
+This project is licensed under the Apache License, Version 2.0, or the MIT
+License, at your option. See LICENSE-APACHE and LICENSE-MIT.

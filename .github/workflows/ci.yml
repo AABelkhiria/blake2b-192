@@ -1,0 +1,74 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  rust:
+    name: Rust ${{ matrix.toolchain }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        toolchain: ["1.85.0", "stable"]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install Rust toolchain
+        run: rustup toolchain install "${{ matrix.toolchain }}" --profile minimal
+      - name: Check all targets
+        run: cargo "+${{ matrix.toolchain }}" check --all-targets --locked
+      - name: Run tests
+        run: cargo "+${{ matrix.toolchain }}" test --locked
+      - name: Run tests in release mode
+        run: cargo "+${{ matrix.toolchain }}" test --release --locked
+
+  targets:
+    name: Target ${{ matrix.target }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - thumbv7em-none-eabi
+          - wasm32-unknown-unknown
+          - x86_64-unknown-linux-musl
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install Rust toolchain with the target
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup target add "${{ matrix.target }}"
+      # The library is no_std with zero dependencies, so every claimed target
+      # must compile it as-is.
+      - name: Check the library
+        run: cargo +stable check --lib --target "${{ matrix.target }}" --locked
+
+  quality:
+    name: Quality and dependency policy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install stable Rust with required components
+        run: rustup toolchain install stable --profile minimal --component clippy,rustfmt
+      # The hashing core must stay free of unsafe, panics, and unwraps; test
+      # code (src/tests.rs, tests/) is exempt — assertions are its job.
+      - name: Reject prohibited paths in the hashing core
+        run: |
+          if rg -n '\bunsafe[[:space:]]*(\{|fn\b|impl\b|trait\b|extern\b|static\b)|panic!\(|todo!\(|unimplemented!\(|unreachable!\(|\.unwrap\(|\.expect\(' src --glob '!src/tests.rs'; then
+            exit 1
+          fi
+      - name: Check formatting
+        run: cargo +stable fmt --all -- --check
+      - name: Run Clippy
+        run: cargo +stable clippy --all-targets --all-features --locked -- -D warnings
+      - name: Build documentation
+        run: RUSTDOCFLAGS="-D warnings" cargo +stable doc --no-deps --locked
+      - name: Enforce the dependency policy
+        run: ./ci/check_dependency_policy.sh
