@@ -53,12 +53,16 @@ jobs:
   miri:
     name: Miri
     runs-on: ubuntu-latest
+    env:
+      NIGHTLY: nightly-2026-08-03
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Install nightly Rust with Miri
-        run: rustup toolchain install nightly --profile minimal --component miri
+      - name: Install the pinned nightly with Miri
+        run: rustup toolchain install "$NIGHTLY" --profile minimal --component miri,rust-src
       - name: Run the unit tests under Miri
-        run: cargo +nightly miri test --locked --lib
+        run: cargo "+$NIGHTLY" miri test --locked --lib
+      - name: Run the unit tests under Miri, cross-interpreted big-endian
+        run: cargo "+$NIGHTLY" miri test --locked --lib --target s390x-unknown-linux-gnu
 
   fixtures:
     name: Reproduce oracle fixtures
