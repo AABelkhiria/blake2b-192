@@ -175,12 +175,12 @@ impl State {
         }
     }
 
-    /// Adds `n` to the 128-bit byte counter.
+    /// Adds `n` to the 128-bit byte counter, carrying into the high word.
     fn count(&mut self, n: usize) {
         let n = n as u64;
         self.t_lo = self.t_lo.wrapping_add(n);
         if self.t_lo < n {
-            self.t_hi += 1;
+            self.t_hi = self.t_hi.wrapping_add(1);
         }
     }
 
@@ -213,8 +213,9 @@ impl State {
     /// length `nn` is its first `nn` bytes. An empty message compresses one
     /// all-zero block with the counter at zero (RFC 7693 §3.3, dd = 1).
     fn finalize(mut self) -> [u8; 64] {
-        self.count(self.buf_len);
-        self.buf[self.buf_len..].fill(0);
+        let buf_len = self.buf_len.min(BLOCK_LEN);
+        self.count(buf_len);
+        self.buf[buf_len..].fill(0);
         compress(&mut self.h, &self.buf, self.t_lo, self.t_hi, true);
 
         let mut out = [0u8; 64];

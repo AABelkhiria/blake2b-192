@@ -136,6 +136,51 @@ fn streaming_two_chunk_splits() {
     }
 }
 
+/// The low→high carry of the 128-bit byte counter. No test can reach it
+/// through the public API (it needs 2^64 bytes of input), so the counter is
+/// driven directly. Added during the Phase 4 security review, which found the
+/// carry branch otherwise unexercised.
+#[test]
+fn counter_carry() {
+    let mut state = State::new(24);
+
+    // No carry below 2^64.
+    state.count(128);
+    assert_eq!((state.t_lo, state.t_hi), (128, 0));
+
+    // Exactly reaching 2^64 wraps the low word to zero and carries once.
+    state.t_lo = u64::MAX;
+    state.t_hi = 0;
+    state.count(1);
+    assert_eq!((state.t_lo, state.t_hi), (0, 1));
+
+    // Crossing 2^64 keeps the remainder in the low word.
+    state.t_lo = u64::MAX - 2;
+    state.t_hi = 7;
+    state.count(10);
+    assert_eq!((state.t_lo, state.t_hi), (7, 8));
+
+    // The boundary case just below the wrap must not carry.
+    state.t_lo = u64::MAX - 128;
+    state.t_hi = 0;
+    state.count(128);
+    assert_eq!((state.t_lo, state.t_hi), (u64::MAX, 0));
+
+    // The high word wraps rather than panicking (unreachable: 2^128 bytes).
+    state.t_lo = u64::MAX;
+    state.t_hi = u64::MAX;
+    state.count(1);
+    assert_eq!((state.t_lo, state.t_hi), (0, 0));
+}
+
+/// `Default` must construct the same hasher as `new`.
+#[test]
+fn default_matches_new() {
+    let mut hasher = Blake2b192::default();
+    hasher.update(b"abc");
+    assert_eq!(hasher.finalize(), hash(b"abc"));
+}
+
 /// Empty updates are no-ops anywhere in the stream.
 #[test]
 fn empty_updates_are_noops() {
