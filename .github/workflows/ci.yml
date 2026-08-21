@@ -50,6 +50,22 @@ jobs:
       - name: Check the library
         run: cargo +stable check --lib --target "${{ matrix.target }}" --locked
 
+  fixtures:
+    name: Reproduce oracle fixtures
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install libsodium
+        run: sudo apt-get update && sudo apt-get install -y libsodium23
+      - name: Re-extract the official KAT vectors
+        run: python3 vectors/generate/gen_official_kat.py
+      - name: Regenerate the dual-endorsed vectors
+        run: python3 vectors/generate/gen_vectors.py
+      # Oracle versions in the '#' provenance headers may differ; the vectors
+      # themselves must not.
+      - name: Committed fixtures must match the regenerated ones
+        run: git diff -I'^#' --exit-code -- tests/data
+
   quality:
     name: Quality and dependency policy
     runs-on: ubuntu-latest

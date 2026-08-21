@@ -79,6 +79,49 @@ fn not_a_truncation_of_blake2b512() {
     }
 }
 
+/// All 256 official unkeyed BLAKE2b-512 KATs (inputs 00 01 02 ... of lengths
+/// 0..=255), through the internal core at digest length 64. See the data
+/// file's provenance header.
+#[test]
+fn official_unkeyed_kat64() {
+    let data = include_str!("../tests/data/official_blake2b_kat64.txt");
+    let mut count = 0;
+    for line in data.lines().filter(|l| !l.starts_with('#')) {
+        let (len, digest) = line.split_once(' ').expect("malformed line");
+        let len: usize = len.parse().expect("bad length");
+        let msg: Vec<u8> = (0..len).map(|i| i as u8).collect();
+        let mut state = State::new(64);
+        state.update(&msg);
+        assert_eq!(hex(&state.finalize()), digest, "input length {len}");
+        count += 1;
+    }
+    assert_eq!(count, 256);
+}
+
+/// Digest-length parameterization at 20, 32, 48, and 64 bytes (the RFC 7693
+/// self-test lengths), dual-endorsed fixtures from libsodium and hashlib.
+#[test]
+fn multi_length_parameterization() {
+    let data = include_str!("../tests/data/multilen_kat.txt");
+    let mut count = 0;
+    for line in data.lines().filter(|l| !l.starts_with('#')) {
+        let mut fields = line.split(' ');
+        let outlen: usize = fields.next().unwrap().parse().unwrap();
+        let msglen: usize = fields.next().unwrap().parse().unwrap();
+        let digest = fields.next().unwrap();
+        let msg: Vec<u8> = (0..msglen).map(|i| i as u8).collect();
+        let mut state = State::new(outlen);
+        state.update(&msg);
+        assert_eq!(
+            hex(&state.finalize()[..outlen]),
+            digest,
+            "outlen {outlen}, msglen {msglen}"
+        );
+        count += 1;
+    }
+    assert_eq!(count, 28);
+}
+
 /// The streaming API over every split of a short message equals the one-shot
 /// digest (exhaustive two-chunk splits across the first block boundary).
 #[test]
