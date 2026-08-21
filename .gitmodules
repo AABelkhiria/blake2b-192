@@ -1,6 +1,3 @@
 [submodule "reference/hashes"]
 	path = reference/hashes
 	url = https://github.com/RustCrypto/hashes.git
-[submodule "reference/nacl-sealed-box"]
-	path = reference/nacl-sealed-box
-	url = https://github.com/AABelkhiria/nacl-sealed-box.git

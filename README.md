@@ -1,74 +1,108 @@
 # blake2b-192
 
-BLAKE2b with a fixed 24-byte (192-bit) digest.
+BLAKE2b with the digest length fixed at 24 bytes (192 bits).
 
-> **Status: work in progress — not yet implemented, not yet released. Do not
-> use.**
+BLAKE2b takes its output length as a parameter, and that parameter is mixed into the initial state before a single
+message byte is processed.
+So BLAKE2b-192 is its own function rather than the first 24 bytes of BLAKE2b-512; the two share an algorithm and produce
+unrelated output.
 
-## What this is
+This crate implements the 24-byte parameterization and nothing else.
 
-A deliberately small Rust crate implementing exactly one primitive: unkeyed,
-sequential **BLAKE2b parameterized with `digest_length = 24`** (RFC 7693 /
-the BLAKE2 specification).
+[![License](https://img.shields.io/badge/license-Apache--2.0%20OR%20MIT-blue)](#license)
 
-- The digest length is part of BLAKE2b's parameterization: this is **not**
-  BLAKE2b-512 truncated to 24 bytes — those are unrelated functions.
-- Byte-for-byte compatible with libsodium's
-  `crypto_generichash(out, 24, …)`, CPython's
-  `hashlib.blake2b(digest_size=24)`, and RustCrypto's `Blake2b::<U24>`.
-- `#![no_std]`, zero runtime dependencies, no heap allocation, no `unsafe`
-  (`#![forbid(unsafe_code)]`).
-- No prerelease dependencies anywhere in the tree (enforced in CI).
-- Out of scope: keyed hashing/MAC, salt/personalization, other digest
-  lengths, BLAKE2s, tree mode, XOFs.
+> [!WARNING]
+> The implementation's output is checked byte for byte against libsodium, CPython, and RustCrypto,
+> but agreement between four implementations says nothing about a mistake all four could share.
 
-## Planned API
+## Scope
+
+One function, offering one-shot and streaming. There is no keyed hashing or MAC, no salt or personalization, no tree
+mode, no BLAKE2s, no XOF, and no runtime-selectable digest length.
+What's left is small on purpose: eight `u64` of chaining state, a 128-byte block buffer, and a 128-bit counter.
+No `unsafe` (`#![forbid(unsafe_code)]`), no allocation, no dependencies.
+
+[`blake2`][rustcrypto-blake2] and [`blake2b_simd`][blake2b_simd] are more general (this crate isn't replacing them).
+
+## Usage
 
 ```rust
-pub fn hash(input: &[u8]) -> [u8; 24];
+use blake2b_192::{Blake2b192, hash};
 
-pub struct Blake2b192 { /* … */ }
-impl Blake2b192 {
-    pub fn new() -> Self;
-    pub fn update(&mut self, input: &[u8]);
-    pub fn finalize(self) -> [u8; 24];
-}
+let digest: [u8; 24] = hash(b"abc");
+
+let mut hasher = Blake2b192::new();
+hasher.update(b"ab");
+hasher.update(b"c");
+assert_eq!(hasher.finalize(), digest);
 ```
 
-## Verification
+That digest is `56a17e38cc371a46b12c32f18e0c61de2a84e9c2555b114e`.
+`update` takes any number of chunks and empty calls are no-ops.
+`finalize` consumes the hasher, so reusing one after finishing it is a compile error rather than a subtle bug.
 
-The implementation is written from RFC 7693 and the BLAKE2 specification and
-is differentially verified against independent implementations (libsodium,
-CPython `hashlib`, RustCrypto `blake2`), including official BLAKE2b test
-vectors, block-boundary and streaming-equivalence tests. A 24-byte digest
-provides at most ~96-bit collision resistance; choose a longer digest where
-general-purpose collision resistance matters.
+## Not a truncation
+
+This is the one thing worth being sure about before using the crate:
+
+```text
+BLAKE2b-192("abc")        56a17e38cc371a46b12c32f18e0c61de2a84e9c2555b114e
+BLAKE2b-512("abc")[..24]  ba80a53f981c4d0d6a2797b69f12f6e94c212f14685ac4b7
+```
+
+The digest length lives in BLAKE2b's parameter block, which is XORed into the IV at initialization, so at 24 bytes the
+state starts from `h[0] = IV[0] ^ 0x0101_0018` instead of `IV[0]`.
+Every subsequent round diverges.
+The test suite asserts these two values differ, so the distinction can't quietly regress.
+
+The same parameterization is what libsodium's `crypto_generichash(out, 24, msg, len, NULL, 0)`, CPython's
+`hashlib.blake2b(msg, digest_size=24)`, and RustCrypto's `Blake2b::<U24>` compute.
+This crate matches all three byte for byte.
+
+## How it's tested
+
+There are no published test vectors for unkeyed BLAKE2b with a 24-byte output, so correctness is tested in layers.
+
+The core is tested at 64 bytes against RFC 7693 Appendix A and the official BLAKE2b-512 vectors.
+This covers the core algorithm, including the IV, message schedule, counter, finalization, and endianness.
+
+The 24-byte API is tested against 410-message corpus generated with libsodium and cross-checked with CPython's hashlib.
+RustCrypto hashes the same corpus independently, and both fixtures must match.
+
+Streaming is tested with chunk sizes from 1 to 256, including exact block boundaries.
+Miri checks the implementation on little- and big-endian targets.
+A bare-metal build verifies that the optimized library has no panic paths.
+
+`python3 vectors/generate/gen_vectors.py` regenerates fixtures, and CI re-runs it on every push and diffs the result.
+Vectors this crate generated for itself would be worth nothing.
+
+## Platforms
+
+No features to choose from. The crate is `no_std` and never allocates, so it doesn't need `alloc` either.
+Minimum supported Rust version is 1.85, checked in [Checks](.github/workflows/checks.yml).
+Compile checks for `thumbv7em-none-eabi`, `wasm32-unknown-unknown`, and `x86_64-unknown-linux-musl`.
+
+## Security notes
+
+[SECURITY.md](SECURITY.md) records the scope, assumptions, limitations, and what has been reviewed.
 
 ## Provenance
 
-The implementation was written from RFC 7693 and the BLAKE2 specification,
-using [RustCrypto's `blake2`] crate (`0.11.0-rc.6`) as its review reference
-and libsodium as a verification oracle. Out of caution it is treated as a
-derivative of RustCrypto `blake2` for licensing purposes: the upstream
-copyright notices (The RustCrypto Project Developers, Artyom Pavlov, and the
-`blake2-rfc` Developers) are retained in [LICENSE-MIT](LICENSE-MIT), and
-original contributions are covered by [COPYRIGHT](COPYRIGHT).
+Written from RFC 7693 and the BLAKE2 paper, with RustCrypto's [`blake2`][rustcrypto-blake2] as a review reference:
+Each component was checked against it rather than copied from it.
+The upstream notices, The RustCrypto Project Developers, Artyom Pavlov,
+and the `blake2-rfc` Developers are kept in [LICENSE-MIT](LICENSE-MIT).
 
-Not affiliated with or endorsed by the RustCrypto, BLAKE2, or libsodium
-projects.
+Not affiliated with or endorsed by the RustCrypto, BLAKE2, or libsodium projects.
 
-[RustCrypto's `blake2`]: https://github.com/RustCrypto/hashes/tree/master/blake2
+[rustcrypto-blake2]: https://github.com/RustCrypto/hashes/tree/master/blake2
+[blake2b_simd]: https://github.com/oconnor663/blake2_simd
 
 ## License
 
-Licensed under either of
+Either of
 
 - Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE))
 - MIT license ([LICENSE-MIT](LICENSE-MIT))
 
-at your option.
-
-Unless you explicitly state otherwise, any contribution intentionally
-submitted for inclusion in the work by you, as defined in the Apache-2.0
-license, shall be dual licensed as above, without any additional terms or
-conditions.
+at your option. Contributions are dual licensed the same way unless you say otherwise.

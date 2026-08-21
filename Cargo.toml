@@ -9,8 +9,16 @@ repository = "https://github.com/AABelkhiria/blake2b-192"
 documentation = "https://docs.rs/blake2b-192"
 readme = "README.md"
 keywords = ["blake2", "blake2b", "hash", "crypto", "no-std"]
-categories = ["cryptography", "no-std"]
-include = ["/src", "/Cargo.toml", "/README.md", "/LICENSE-APACHE", "/LICENSE-MIT", "/COPYRIGHT"]
+categories = ["cryptography", "no-std", "no-std::no-alloc"]
+include = [
+    "/src",
+    "/tests",
+    "/Cargo.toml",
+    "/README.md",
+    "/LICENSE-APACHE",
+    "/LICENSE-MIT",
+    "/COPYRIGHT",
+]
 
 [workspace]
 resolver = "3"

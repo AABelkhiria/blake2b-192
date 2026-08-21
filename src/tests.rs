@@ -138,8 +138,7 @@ fn streaming_two_chunk_splits() {
 
 /// The low→high carry of the 128-bit byte counter. No test can reach it
 /// through the public API (it needs 2^64 bytes of input), so the counter is
-/// driven directly. Added during the Phase 4 security review, which found the
-/// carry branch otherwise unexercised.
+/// driven directly; the carry branch would otherwise go unexercised.
 #[test]
 fn counter_carry() {
     let mut state = State::new(24);
