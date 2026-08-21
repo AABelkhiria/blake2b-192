@@ -1,0 +1,17 @@
+# Fixture generator: hashes the committed corpus with RustCrypto
+# blake2 0.11.0-rc.6 (Blake2b::<U24>), the exact prerelease implementation
+# this crate replaces, taken from the pinned reference/hashes submodule.
+#
+# Deliberately NOT a workspace member of the blake2b-192 crate: the
+# prerelease blake2 must never appear in the published crate's dependency
+# graph. This project has its own lockfile.
+[package]
+name = "gen-rustcrypto-fixtures"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[workspace]
+
+[dependencies]
+blake2 = { path = "../../../reference/hashes/blake2", default-features = false }
