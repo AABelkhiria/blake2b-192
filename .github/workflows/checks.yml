@@ -1,4 +1,4 @@
-name: CI
+name: Checks
 
 on:
   push:
@@ -50,6 +50,16 @@ jobs:
       - name: Check the library
         run: cargo +stable check --lib --target "${{ matrix.target }}" --locked
 
+  miri:
+    name: Miri
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install nightly Rust with Miri
+        run: rustup toolchain install nightly --profile minimal --component miri
+      - name: Run the unit tests under Miri
+        run: cargo +nightly miri test --locked --lib
+
   fixtures:
     name: Reproduce oracle fixtures
     runs-on: ubuntu-latest
@@ -61,8 +71,7 @@ jobs:
         run: python3 vectors/generate/gen_official_kat.py
       - name: Regenerate the dual-endorsed vectors
         run: python3 vectors/generate/gen_vectors.py
-      # Oracle versions in the '#' provenance headers may differ; the vectors
-      # themselves must not.
+      # Oracle versions in the '#' provenance headers may differ; the vectors must not.
       - name: Committed fixtures must match the regenerated ones
         run: git diff -I'^#' --exit-code -- tests/data
 
@@ -73,8 +82,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Install stable Rust with required components
         run: rustup toolchain install stable --profile minimal --component clippy,rustfmt
-      # The hashing core must stay free of unsafe, panics, and unwraps; test
-      # code (src/tests.rs, tests/) is exempt — assertions are its job.
+      # The hashing core must stay free of unsafe, panics, and unwraps.
       - name: Reject prohibited paths in the hashing core
         run: |
           if rg -n '\bunsafe[[:space:]]*(\{|fn\b|impl\b|trait\b|extern\b|static\b)|panic!\(|todo!\(|unimplemented!\(|unreachable!\(|\.unwrap\(|\.expect\(' src --glob '!src/tests.rs'; then
@@ -87,4 +95,38 @@ jobs:
       - name: Build documentation
         run: RUSTDOCFLAGS="-D warnings" cargo +stable doc --no-deps --locked
       - name: Enforce the dependency policy
-        run: ./ci/check_dependency_policy.sh
+        run: |
+          set -euo pipefail
+          metadata=$(cargo metadata --format-version 1 --locked)
+
+          # A semver prerelease is the "-..." part, which precedes any "+build"
+          # part, so strip the build metadata before looking for the hyphen.
+          prerelease=$(jq -r '
+            .packages[]
+            | select(.source != null)
+            | select(.version | split("+")[0] | contains("-"))
+            | "  \(.name) \(.version)"
+          ' <<<"$metadata")
+
+          if [ -n "$prerelease" ]; then
+            echo "ERROR: prerelease dependencies in the graph:"
+            echo "$prerelease"
+            exit 1
+          fi
+
+          deps=$(jq -r '[.packages[] | select(.source != null)] | length' <<<"$metadata")
+          echo "OK: no prerelease dependencies ($deps in the resolved graph)"
+      - name: Prove the hashing core emits no panicking paths
+        run: |
+          rustup target add thumbv7em-none-eabi
+          ./ci/check_no_panics.sh
+
+      # Dependency auditing is dormant while the graph has zero dependencies
+      # - name: Install dependency-policy tools
+      #   uses: taiki-e/install-action@b6b84cf49ebfe0176417bdce007c624f0db37f20 # v2.86.2
+      #   with:
+      #     tool: cargo-deny@0.20.2,cargo-audit@0.22.2
+      # - name: Check dependency policy
+      #   run: cargo deny check
+      # - name: Audit Rust dependencies
+      #   run: cargo audit
