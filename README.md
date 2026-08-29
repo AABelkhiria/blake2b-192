@@ -18,7 +18,9 @@ This crate implements the 24-byte parameterization and nothing else.
 ## Scope
 
 One function, offering one-shot and streaming. There is no keyed hashing or MAC, no salt or personalization, no tree
-mode, no BLAKE2s, no XOF, and no runtime-selectable digest length.
+mode, no BLAKE2s, no XOF, and, in the headline API, no runtime-selectable digest length.
+The `engine` module exposes the same validated engine at digest lengths 1 to 64 for crates that build other
+constructions on it; general-purpose users still belong with [`blake2`][rustcrypto-blake2].
 What's left is small on purpose: eight `u64` of chaining state, a 128-byte block buffer, and a 128-bit counter.
 No `unsafe` (`#![forbid(unsafe_code)]`), no allocation, no dependencies.
 

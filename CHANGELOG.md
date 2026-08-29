@@ -3,6 +3,26 @@
 > Following [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 > and [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.1-rc.1] - 2026-08-29
+
+Export of the internal engine for crates that build on it. Scope of the headline API does not change.
+
+### Added
+
+- `engine::Blake2bCore`: the existing internal `State` made public under a subordinate `engine` module:
+  `new(digest_len)` for 1..=64 bytes, `update`, and `finalize`.
+  This is the same engine the 0.1.0 KAT suites already validate at 64 bytes (RFC 7693 Appendix A and the 256 official
+  BLAKE2b-512 vectors) and at 1..=64 bytes (the multi-length KAT set); those suites gain public-API twins
+  (`tests/core64.rs`, `tests/core_varlen.rs`) so the export is pinned by the vectors that justified it.
+  General-purpose users are still pointed at RustCrypto's `blake2`.
+
+### Compatibility
+
+- Additive release, shipped as a patch-level release candidate:
+    - The 24-byte headline API, `no_std` with no `alloc`, zero dependencies, and MSRV 1.85 are all unchanged.
+    - The README now clarifies that the headline API has a fixed digest length.
+      The engine module is an internal-facing exception that supports other digest lengths.
+
 ## [0.1.0] - 2026-08-21
 
 First release.
@@ -44,4 +64,5 @@ This is one portion of what RustCrypto's `blake2` covers: BLAKE2b-192, and nothi
   Compile-checked for `thumbv7em-none-eabi`, `wasm32-unknown-unknown` and `x86_64-unknown-linux-musl`.
   Minimum supported Rust version is 1.85.
 
+[0.1.1-rc.1]: https://github.com/AABelkhiria/blake2b-192/releases/tag/v0.1.1-rc.1
 [0.1.0]: https://github.com/AABelkhiria/blake2b-192/releases/tag/v0.1.0

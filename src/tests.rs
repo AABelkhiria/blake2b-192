@@ -3,7 +3,8 @@ extern crate std;
 use std::string::String;
 use std::vec::Vec;
 
-use super::{Blake2b192, IV, State, hash};
+use super::engine::{Blake2bCore, IV};
+use super::{Blake2b192, hash};
 
 fn hex(bytes: &[u8]) -> String {
     bytes.iter().map(|b| std::format!("{b:02x}")).collect()
@@ -13,7 +14,7 @@ fn hex(bytes: &[u8]) -> String {
 /// digest_length = 24, key_length = 0, fanout = 1, depth = 1.
 #[test]
 fn init_parameter_word() {
-    let state = State::new(24);
+    let state = Blake2bCore::new(24).expect("24 is a valid digest length");
     assert_eq!(state.h[0], 0x6a09_e667_f2bd_c910);
     assert_eq!(state.h[0], IV[0] ^ 0x0101_0018);
     assert_eq!(state.h[1..], IV[1..]);
@@ -42,11 +43,11 @@ fn anchors_24() {
     );
 }
 
-/// RFC 7693 Appendix A: BLAKE2b-512("abc"), through the internal core at
-/// digest length 64 — the authoritative spec vector.
+/// RFC 7693 Appendix A: BLAKE2b-512("abc"), through the core at digest
+/// length 64 — the authoritative spec vector.
 #[test]
 fn rfc7693_appendix_a_blake2b512_abc() {
-    let mut state = State::new(64);
+    let mut state = Blake2bCore::new(64).expect("64 is a valid digest length");
     state.update(b"abc");
     assert_eq!(
         hex(&state.finalize()),
@@ -59,7 +60,7 @@ fn rfc7693_appendix_a_blake2b512_abc() {
 /// (blake2-kat.json, unkeyed entry for the empty input).
 #[test]
 fn official_kat_blake2b512_empty() {
-    let state = State::new(64);
+    let state = Blake2bCore::new(64).expect("64 is a valid digest length");
     assert_eq!(
         hex(&state.finalize()),
         "786a02f742015903c6c6fd852552d272912f4740e15847618a86e217f71f5419\
@@ -72,7 +73,7 @@ fn official_kat_blake2b512_empty() {
 #[test]
 fn not_a_truncation_of_blake2b512() {
     for msg in [&b""[..], b"abc"] {
-        let mut state = State::new(64);
+        let mut state = Blake2bCore::new(64).expect("64 is a valid digest length");
         state.update(msg);
         let full = state.finalize();
         assert_ne!(hash(msg), full[..24]);
@@ -80,7 +81,7 @@ fn not_a_truncation_of_blake2b512() {
 }
 
 /// All 256 official unkeyed BLAKE2b-512 KATs (inputs 00 01 02 ... of lengths
-/// 0..=255), through the internal core at digest length 64. See the data
+/// 0..=255), through the core at digest length 64. See the data
 /// file's provenance header.
 #[test]
 fn official_unkeyed_kat64() {
@@ -90,7 +91,7 @@ fn official_unkeyed_kat64() {
         let (len, digest) = line.split_once(' ').expect("malformed line");
         let len: usize = len.parse().expect("bad length");
         let msg: Vec<u8> = (0..len).map(|i| i as u8).collect();
-        let mut state = State::new(64);
+        let mut state = Blake2bCore::new(64).expect("64 is a valid digest length");
         state.update(&msg);
         assert_eq!(hex(&state.finalize()), digest, "input length {len}");
         count += 1;
@@ -110,7 +111,7 @@ fn multi_length_parameterization() {
         let msglen: usize = fields.next().unwrap().parse().unwrap();
         let digest = fields.next().unwrap();
         let msg: Vec<u8> = (0..msglen).map(|i| i as u8).collect();
-        let mut state = State::new(outlen);
+        let mut state = Blake2bCore::new(outlen).expect("KAT digest lengths are valid");
         state.update(&msg);
         assert_eq!(
             hex(&state.finalize()[..outlen]),
@@ -141,7 +142,7 @@ fn streaming_two_chunk_splits() {
 /// driven directly; the carry branch would otherwise go unexercised.
 #[test]
 fn counter_carry() {
-    let mut state = State::new(24);
+    let mut state = Blake2bCore::init(24);
 
     // No carry below 2^64.
     state.count(128);

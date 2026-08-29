@@ -52,9 +52,17 @@ That is the same function as libsodium's `crypto_generichash(out, 24, msg, len, 
 It is not BLAKE2b-512 truncated.
 The digest length is XORed into the initial state before any message byte is processed, the two are unrelated functions.
 
+The `engine` module additionally exposes the same engine at digest lengths 1 to 64 (`engine::Blake2bCore`), for crates
+that build other constructions on it; every parameter other than digest_length stays fixed as above.
+
 Not provided, and not a supported use:
-Keyed hashing or MAC, salt and personalization, tree modes, BLAKE2s, BLAKE2X and other XOFs, runtime-variable output
-length, password hashing, and key derivation.
+Keyed hashing or MAC, salt and personalization, tree modes, BLAKE2s, BLAKE2X and other XOFs, and runtime-variable
+output length outside the `engine` module.
+
+This crate implements no password hashing or key derivation itself, but it no longer gets to disclaim the topic
+entirely: such constructions can be built on `engine::Blake2bCore`, and that is what the module is for.
+Whether a construction is assembled correctly is the building crate's problem; a defect in the engine underneath it
+is this crate's, and belongs in a report here.
 
 ## Implementation assumptions
 
@@ -74,11 +82,15 @@ so reusing one after finishing it is a compile error rather than a silent wrong 
 ## Known limitations
 
 Hashing is data-independent by construction, a fixed round count, no secret-dependent branches, and no table lookups
-indexed by input, and the supported use is hashing non-secret data.
+indexed by input.
+That property is what lets the exported engine sit under constructions that do see secret input; the 24-byte API itself
+is still meant for hashing non-secret data.
 Comparing digests is yours to do.
 If the digests are secret, use a constant-time comparison; this crate doesn't provide one.
 
-State is not zeroized on drop. If you hash something sensitive, this crate will not erase it.
+State is not zeroized on drop. If you hash something sensitive, this crate will not erase it, and that holds for
+`engine::Blake2bCore` too: a construction feeding secret material through the engine, as a password hash does, has to
+do its own scrubbing.
 
 RustCrypto's BLAKE2b keeps a 64-bit byte counter and hard-codes the high word to zero, where this crate carries into it
 as RFC 7693 specifies.
