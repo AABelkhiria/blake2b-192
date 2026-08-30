@@ -1,6 +1,6 @@
 # Unkeyed BLAKE2b-192 differential fixtures from RustCrypto
-# blake2 0.11.0-rc.6 (Blake2b::<U24>::digest), built from the pinned
-# submodule reference/hashes @ tag blake2-v0.11.0-rc.6.
+# blake2 0.11.0 (Blake2b::<U24>::digest), built from the pinned
+# submodule reference/hashes @ tag blake2-v0.11.0.
 # Same corpus as blake2b192_kat.txt. Regenerate with:
 #   cargo run --release --manifest-path vectors/generate/rustcrypto/Cargo.toml
 # Format: <message-spec> <blake2b-192-hex-digest>

@@ -3,6 +3,17 @@
 > Following [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 > and [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.1] - 2026-08-30
+
+Promotes [0.1.1-rc.1]:
+Exports the internal engine as `engine::Blake2bCore` (`new(digest_len)` for 1..=64 bytes, `update`, `finalize`) for
+crates that build on it, pinned by public-API twins of the KAT suites. The headline 24-byte API,
+
+### Compatibility
+
+- Differential fixtures regenerated against RustCrypto `blake2 0.11.0` stable (previously 0.11.0-rc.6):
+  all 410 digests are byte-identical, and the pinned `reference/hashes` submodule now points at `blake2-v0.11.0`.
+
 ## [0.1.1-rc.1] - 2026-08-29
 
 Export of the internal engine for crates that build on it. Scope of the headline API does not change.
@@ -64,5 +75,6 @@ This is one portion of what RustCrypto's `blake2` covers: BLAKE2b-192, and nothi
   Compile-checked for `thumbv7em-none-eabi`, `wasm32-unknown-unknown` and `x86_64-unknown-linux-musl`.
   Minimum supported Rust version is 1.85.
 
+[0.1.1]: https://github.com/AABelkhiria/blake2b-192/compare/v0.1.0...v0.1.1
 [0.1.1-rc.1]: https://github.com/AABelkhiria/blake2b-192/releases/tag/v0.1.1-rc.1
 [0.1.0]: https://github.com/AABelkhiria/blake2b-192/releases/tag/v0.1.0

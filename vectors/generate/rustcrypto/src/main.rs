@@ -1,6 +1,6 @@
 //! Reads the corpus specs from tests/data/blake2b192_kat.txt (ignoring the
 //! digests there), hashes each message with RustCrypto
-//! `Blake2b::<U24>::digest` at the pinned prerelease version, and writes
+//! `Blake2b::<U24>::digest` at the pinned reference version, and writes
 //! tests/data/rustcrypto_blake2b192.txt.
 //!
 //! Message building must match vectors/generate/gen_vectors.py and
@@ -64,8 +64,8 @@ fn main() {
 
     let mut out = String::from(
         "# Unkeyed BLAKE2b-192 differential fixtures from RustCrypto\n\
-         # blake2 0.11.0-rc.6 (Blake2b::<U24>::digest), built from the pinned\n\
-         # submodule reference/hashes @ tag blake2-v0.11.0-rc.6.\n\
+         # blake2 0.11.0 (Blake2b::<U24>::digest), built from the pinned\n\
+         # submodule reference/hashes @ tag blake2-v0.11.0.\n\
          # Same corpus as blake2b192_kat.txt. Regenerate with:\n\
          #   cargo run --release --manifest-path vectors/generate/rustcrypto/Cargo.toml\n\
          # Format: <message-spec> <blake2b-192-hex-digest>\n",

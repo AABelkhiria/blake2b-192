@@ -1,7 +1,7 @@
-//! Differential fixtures produced by RustCrypto blake2 0.11.0-rc.6
+//! Differential fixtures produced by RustCrypto blake2 0.11.0
 //! (`Blake2b::<U24>::digest`) — the exact implementation this crate replaces
 //! — over the same corpus as the dual-endorsed KAT file. Generated
-//! out-of-tree from the pinned reference/hashes submodule so the prerelease
+//! out-of-tree from the pinned reference/hashes submodule so the reference
 //! crate never enters this crate's dependency graph.
 
 mod common;
